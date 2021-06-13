@@ -6,6 +6,8 @@ import os
 import time
 import traceback
 
+BORDER_FOR_SORT = 5
+
 def get_result_trac_nghiem(image_trac_nghiem, ANSWER_KEY, debug):
 	translate = {"A": 0, "B": 1, "C": 2, "D": 3}
 	revert_translate={0:"A",1:"B",2:"C",3:"D",-1:"N"}
@@ -142,95 +144,104 @@ def get_result_trac_nghiem(image_trac_nghiem, ANSWER_KEY, debug):
 
 
 def get_sbd(image_sbd, debug):
-	image = image_sbd
-	height, width, channels = image.shape
-	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	thresh = cv2.adaptiveThreshold(gray, maxValue=255,
-										   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
-										   thresholdType=cv2.THRESH_BINARY_INV ,
-										   blockSize=15,
-										   C=8)
-	#
-	# cv2.imshow("cropped", thresh)
-	# cv2.waitKey(0)
+    image = image_sbd.copy()
+    height, width, channels = image.shape
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.adaptiveThreshold(gray, maxValue=255,
+                                           adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
+                                           thresholdType=cv2.THRESH_BINARY_INV ,
+                                           blockSize=15,
+                                           C=8)
+    #
+    # cv2.imshow("cropped", thresh)
+    # cv2.waitKey(0)
 
-	cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST,
-							cv2.CHAIN_APPROX_SIMPLE)
-	cnts = imutils.grab_contours(cnts)
+    cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST,
+                            cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
 
-	questionCnts = []
-	for c in cnts:
-		(x, y, w, h) = cv2.boundingRect(c)
-		ar = w / float(h)
-		if  w >=width/13 and h >= height/13 and ar >= 0.7 and ar <= 1.3 and w < width/2 and h<=height/8 :
-			questionCnts.append(c)
+    questionCnts = []
+    for c in cnts:
+        (x, y, w, h) = cv2.boundingRect(c)
+        ar = w / float(h)
+        if  w >=width/13 and h >= height/13 and ar >= 0.7 and ar <= 1.3 and w < width/2 and h<=height/8 :
+            questionCnts.append(c)
 
-	questionCnts = contours.sort_contours(questionCnts,
-										  method="top-to-bottom")[0]
-	# cv2.drawContours(image, questionCnts, -1,  (0, 255, 0), 3)
-	# cv2.imshow("cropped", image)
-	# cv2.waitKey(0)
+    questionCnts_sorted = sorted(questionCnts, key=lambda contour: (cv2.boundingRect(contour)[0]//BORDER_FOR_SORT, cv2.boundingRect(contour)[1]//BORDER_FOR_SORT))
+    # cv2.drawContours(image, questionCnts, -1,  (0, 255, 0), 3)
+    # cv2.imshow("cropped", image)
+    # cv2.waitKey(0)
 
-	if debug['on']:
-		cv2.drawContours(image, questionCnts, -1, (0, 255, 0), 3)
-		cv2.imwrite(debug['folder'] +'contours_sbd1.jpeg', image)
+    if debug['on']:
+        cv2.drawContours(image, questionCnts, -1, (0, 255, 0), 3)
+        cv2.imwrite(debug['folder'] +'contours_sbd1.jpeg', image)
+    logging.info(f"do dai sbd contours {len(questionCnts)}")
+    if len(questionCnts_sorted)!=100:
+        thresh = cv2.threshold(gray, 0, 255,
+                               cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+        cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST,
+                                cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours(cnts)
+        questionCnts_sorted = []
+        for c in cnts:
+            (x, y, w, h) = cv2.boundingRect(c)
+            ar = w / float(h)
+            if w >= width / 13 and h >= height / 13 and ar >= 0.7 and ar <= 1.3 and w < width / 2 and h <= height / 8:
+                questionCnts.append(c)
+        questionCnts_sorted = sorted(questionCnts, key=lambda contour: (
+        cv2.boundingRect(contour)[0] // BORDER_FOR_SORT, cv2.boundingRect(contour)[1] // BORDER_FOR_SORT))
 
-	if len(questionCnts)!=100:
-		thresh = cv2.threshold(gray, 0, 255,
-							   cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-		cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST,
-								cv2.CHAIN_APPROX_SIMPLE)
-		cnts = imutils.grab_contours(cnts)
-		questionCnts = []
-		for c in cnts:
-			(x, y, w, h) = cv2.boundingRect(c)
-			ar = w / float(h)
-			if w >= width / 13 and h >= height / 13 and ar >= 0.7 and ar <= 1.3 and w < width / 2 and h <= height / 8:
-				questionCnts.append(c)
+        # questionCnts = contours.sort_contours(questionCnts,
+        # 									  method="top-to-bottom")[0]
+        cv2.drawContours(image, questionCnts_sorted, -1, (0, 255, 0), 3)
+        #cv2.imshow("cropped", image)
+        #cv2.waitKey(0)
 
-		questionCnts = contours.sort_contours(questionCnts,
-											  method="top-to-bottom")[0]
-		cv2.drawContours(image, questionCnts, -1, (0, 255, 0), 3)
-		#cv2.imshow("cropped", image)
-		#cv2.waitKey(0)
+        if debug['on']:
+            cv2.imwrite(debug['folder'] +'contours_sbd.jpeg', image)
 
-		if debug['on']:
-			cv2.imwrite(debug['folder'] +'contours_sbd.jpeg', image)
+    sbd = []
+    thresh = cv2.threshold(gray, 0, 255,
+                           cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+    if debug['on']:
+        cv2.imwrite(debug['folder'] + 'sbd-threshed.jpeg', thresh)
 
-	sbd = []
-	thresh = cv2.threshold(gray, 0, 255,
-						   cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-	for i in range(0,10):
-		list_questionCnts=[]
-		for j1 in range(0,10):
-			list_questionCnts.append(questionCnts[i+j1*10])
-		cnts = contours.sort_contours(list_questionCnts,method="top-to-bottom")[0]
-		bubbled = None
-		min = 100000000
-		total=0
-		for (j, c) in enumerate(cnts):
+    for i in range(0,10):
+        list_questionCnts=[]
+        for j1 in range(0,10):
+            list_questionCnts.append(questionCnts_sorted[j1+i*10])
+            cv2.drawContours(image, questionCnts_sorted, j1+i*10, (255,0,0), -1)
 
-			mask = np.zeros(thresh.shape, dtype="uint8")
-			cv2.drawContours(mask, [c], -1, 255, -1)
-			mask = cv2.bitwise_and(thresh, thresh, mask=mask)
-			total = cv2.countNonZero(mask)
-			# print(j)
-			# cv2.imshow("cropped", mask)
-			# cv2.waitKey(0)
-			if total <= min:
-				min = total
-			if bubbled is None or total > bubbled[0]:
-				bubbled = (total, j)
+        if debug['on']:
+            cv2.imwrite(debug['folder'] + f'sbd-cot-{str(current_milli_time())}.jpeg', image)
+        cnts = sorted(list_questionCnts, key=lambda contour: (
+            cv2.boundingRect(contour)[0] // BORDER_FOR_SORT, cv2.boundingRect(contour)[1] // BORDER_FOR_SORT))
+        bubbled = None
+        min = 100000000
+        total=0
+        for (j, c) in enumerate(cnts):
 
-		if bubbled[0] < min * 1.4:
-			bubbled = (total, -1)
+            mask = np.zeros(thresh.shape, dtype="uint8")
+            cv2.drawContours(mask, [c], -1, 255, -1)
+            mask = cv2.bitwise_and(thresh, thresh, mask=mask)
+            total = cv2.countNonZero(mask)
+            # print(j)
+            # cv2.imshow("cropped", mask)
+            # cv2.waitKey(0)
+            if total <= min:
+                min = total
+            if bubbled is None or total > bubbled[0]:
+                bubbled = (total, j)
 
-		sbd.append(bubbled[1])
+        if bubbled[0] < min * 1.4:
+            bubbled = (total, -1)
 
-		if bubbled[1]!=-1:
-			color = list(np.random.random(size=3) * 256)
-			cv2.drawContours(image, [cnts[bubbled[1]]], -1, color, 3)
-	return sbd[::-1],image
+        sbd.append(bubbled[1])
+
+        if bubbled[1]!=-1:
+            color = list(np.random.random(size=3) * 256)
+            cv2.drawContours(image, [cnts[bubbled[1]]], -1, color, 3)
+    return sbd, image
 
 
 
