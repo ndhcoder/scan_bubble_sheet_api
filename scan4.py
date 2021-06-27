@@ -30,7 +30,7 @@ def test_scan(path_img):
 		ans_block_img = get_ans_block(input_img, block_cnts, col_index)
 		su.export_img(name_block + '_ans_block_img.png', ans_block_img)
 
-		ans, cnts_correct = get_ans(name_block, ans_block_img)
+		ans, cnts_correct = get_ans(name_block, ans_block_img, col_index)
 		su.export_img_cnt('000_' + name_block + '_final.png', ans_block_img, cnts_correct, False)
 
 	# ans_block_1_30_img = get_ans_block(input_img, block_cnts, 1)
@@ -59,7 +59,7 @@ def binary_search_question_cnt(cnts):
 	left = 0
 	right = 5000
 	mid = (left + right ) // 2
-
+	question_cnts = []
 	while left < right and left != mid and mid != right:
 		question_cnts = find_question_cnt(cnts, mid)
 		size_question_cnts = len(question_cnts)
@@ -75,17 +75,44 @@ def binary_search_question_cnt(cnts):
 			left = mid 
 			mid = (left + right) // 2
 
-	return []
+	return question_cnts
+
+def min_dist(x, y, map_xy):
+	m = 99999999 
+	for a in map_xy:
+		d = (a['x'] - x) * (a['x'] - x) + (a['y'] - y) * (a['y'] - y)
+		if d < m:
+			m = d 
+
+	return m
+
+
+def min_dist_debug(x, y, map_xy):
+	m = 99999999 
+	for a in map_xy:
+		if a['x'] == x and a['y'] == y:
+			continue
+
+		d = (a['x'] - x) * (a['x'] - x) + (a['y'] - y) * (a['y'] - y)
+		if d < m:
+			m = d 
+
+	return m
 
 def find_question_cnt(cnts, min_area):
 	question_cnts = []
+	map_xy = []
+	index = 0
 	for cnt in cnts:
 		(x, y, w, h) = cv2.boundingRect(cnt)
 		ar = w / float(h)
 		area = w * h #cv2.contourArea(cnt)
-		if (x > 0 or y > 0) and ar > 0.5 and ar < 1.5 and area > min_area:
+		mind = min_dist(x, y, map_xy)
+		if (x > 0 or y > 0) and ar > 0.5 and ar < 1.5 and area > min_area and (index == 0 or mind > 500):
 			#print (str(area) + ", w=" + str(w) + ", h=" + str(h))
+			map_xy.append({'x': x, 'y': y})
 			question_cnts.append(cnt)
+			index+=1
 
 	return question_cnts
 
@@ -99,7 +126,7 @@ def binary_search_block_cnt(img_width, img_height, right_border_from, bottom_bor
 		result_cnts = find_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts, mid)
 		size_cnts = len(result_cnts)
 
-		print ("mid = " + str(mid) + ", size = " + str(size_cnts))
+		#print ("mid = " + str(mid) + ", size = " + str(size_cnts))
 		if size_cnts == expect_size:
 			return result_cnts
 
@@ -124,7 +151,7 @@ def find_block_cnt(img_width, img_height, right_border_from, bottom_border_from,
 
 	return block_cnts
 
-def get_ans(name, ans_block_img):
+def get_ans(name, ans_block_img, col_index):
 	#su.export_img(name + '.png', input_img)
 	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(ans_block_img)
 
@@ -148,10 +175,23 @@ def get_ans(name, ans_block_img):
 	cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 		cv2.CHAIN_APPROX_SIMPLE)
 	cnts = imutils.grab_contours(cnts)
+	cnts = contours.sort_contours(cnts,
+		method="top-to-bottom")[0]
 	su.export_img_cnt(name + '_cnts.png', ans_block_img, cnts, True)
 
 	question_cnts = binary_search_question_cnt(cnts)
 	su.export_img_cnt(name + '_question_cnts.png', ans_block_img, question_cnts, True)
+
+	if col_index == 5: 
+		map_xy = []
+
+		for cnt in question_cnts:
+			(x, y, w, h) = cv2.boundingRect(cnt)
+			map_xy.append({'x': x, 'y': y})
+
+		for cnt in question_cnts:
+			(x, y, w, h) = cv2.boundingRect(cnt)
+			print ("cnt: " + str(min_dist_debug(x,y, map_xy)))
 
 	size_question_cnts = len(question_cnts)
 	su.debug_print('size_question_cnts: ' + str(size_question_cnts))
