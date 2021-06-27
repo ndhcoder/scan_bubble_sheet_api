@@ -10,7 +10,7 @@ import scan4 as scanner
 def resolved(path_img):
 	result = scanner.scan_exam(path_img)
 
-	print (str(result))
+	#print (str(result))
 	string_answer_list='_'.join(map(str, result['answers']))
 	#output_image = link[:-4]+"_result"+link[-4:]
 	#cv2.imwrite(output_image, img)
@@ -20,8 +20,10 @@ def resolved(path_img):
 	if result['student_code'].find("-") > 0 or result['exam_code'].find("-") > 0:
 		success = False
 
-	assert_res = assert_result(string_answer_list)
-	return { 'success': success, 'student_code': result['student_code'], 'permutation_exam_code': result['exam_code'], 'answers': result['answers'] ,'len': len(result['answers']), 'assert': assert_res}
+	#assert_res = assert_result(string_answer_list)
+	#return { 'success': success, 'student_code': result['student_code'], 'permutation_exam_code': result['exam_code'], 'answers': result['answers'] ,'len': len(result['answers']), 'assert': assert_res}
+
+	return { 'success': success, 'student_code': result['student_code'], 'permutation_exam_code': result['exam_code'], 'answers': result['answers']}
 
 def assert_result(string_answer_list):
 	result_list = string_answer_list.split('_')
@@ -63,7 +65,6 @@ def assert_result(string_answer_list):
 			wa[i] =  my_answers[i] + " | " + result_list[i]
 
 	return { 'result': str(correct_count) + '/' + str(question_size), 'wa': wa }
-
 
 def current_milli_time():
 	return round(time.time() * 1000)

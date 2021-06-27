@@ -1,6 +1,6 @@
-from imutils import contours
 import numpy as np
 import imutils
+from imutils import contours
 import cv2
 import os
 import time
@@ -104,7 +104,6 @@ def min_dist(x, y, map_xy):
 			m = d 
 
 	return m
-
 
 def min_dist_debug(x, y, map_xy):
 	m = 99999999 
@@ -354,10 +353,28 @@ def get_block_points(input_img, block_cnts, col_index):
 def get_sbd(input_img):
 	input_img = su.get_bigest_frame('sbdinput', input_img)
 	su.export_img('sbd_input.png', input_img)
-	thresh2s = su.removeBlue(input_img)
-	su.export_img('thresh_sbd.png', thresh2s)
+	sbd = get_sbd_detail('sbd', input_img)
+	return ''.join(sbd)
 
-	img_height, img_width, img_channels = input_img.shape
+def get_exam_code(input_img):
+	input_img = su.get_bigest_frame('exam_code_input', input_img)
+	su.export_img('exam_code_input.png', input_img)
+	exam_code = get_exam_code_detail('exam_code', input_img)
+	return ''.join(exam_code)
+	
+
+def get_sbd_detail(name, sbd_block_img):
+	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(sbd_block_img)
+	su.export_img(name + '_block_bg_img.png', ans_block_bg_img)
+
+	thresh_bg = cv2.adaptiveThreshold(ans_block_bg_img, maxValue=255,
+								   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
+								   thresholdType=cv2.THRESH_BINARY_INV,
+								   blockSize=15,
+								   C=8)
+
+	su.export_img(name + '_thresh_bg.png', thresh_bg)
+	img_height, img_width, img_channels = sbd_block_img.shape
 	size_1_col = int(img_width / 10)
 	size_1_row = int(img_height / 10)
 	sbd = list("----------")
@@ -365,7 +382,7 @@ def get_sbd(input_img):
 	
 	for i in range(0, 10):
 		for j in range(0, 10):
-			square = thresh2s[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
+			square = thresh_bg[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
 			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
 			# mask = np.zeros(square.shape, dtype="uint8")
 			# cv2.drawContours(mask, , -1, 255, -1)
@@ -381,16 +398,20 @@ def get_sbd(input_img):
 				sbd_percent[j] = percent_non_zero
 				sbd[j] = str(i)
 
+	return sbd
 
-	return ''.join(sbd)
+def get_exam_code_detail(name, exam_code_block_img):
+	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(exam_code_block_img)
+	su.export_img(name + '_block_bg_img.png', ans_block_bg_img)
 
-def get_exam_code(input_img):
-	input_img = su.get_bigest_frame('exam_code_input', input_img)
-	su.export_img('exam_code_input.png', input_img)
-	thresh2s = su.removeBlue(input_img)
-	su.export_img('thresh_exam_code.png', thresh2s)
+	thresh_bg = cv2.adaptiveThreshold(ans_block_bg_img, maxValue=255,
+								   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
+								   thresholdType=cv2.THRESH_BINARY_INV,
+								   blockSize=15,
+								   C=8)
 
-	img_height, img_width, img_channels = input_img.shape
+	su.export_img(name + '_thresh_bg.png', thresh_bg)
+	img_height, img_width, img_channels = exam_code_block_img.shape
 	size_1_col = int(img_width / 6)
 	size_1_row = int(img_height / 10)
 	exam_code = list("------")
@@ -398,7 +419,7 @@ def get_exam_code(input_img):
 
 	for i in range(0, 10):
 		for j in range(0, 6):
-			square = thresh2s[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
+			square = thresh_bg[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
 			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
 			# mask = np.zeros(square.shape, dtype="uint8")
 			# cv2.drawContours(mask, , -1, 255, -1)
@@ -416,5 +437,6 @@ def get_exam_code(input_img):
 
 	return ''.join(exam_code)
 
-path_img = 'E:\\hgedu-test\\kt1.png'
-scan_exam(path_img)
+
+#path_img = 'E:\\hgedu-test\\Test\\Test\\1.png'#'E:\\hgedu-test\\kt1.png'
+#scan_exam(path_img)
