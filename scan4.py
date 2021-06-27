@@ -19,8 +19,8 @@ def test_scan(path_img):
 	crop_sbd_position = (int(951 / max_weight* img_width), int(254 / max_heigh * img_height), int(1430 / max_weight* img_width), int(821 / max_heigh * img_height))
 	crop_sbd_img = input_img[crop_sbd_position[1]:crop_sbd_position[3], crop_sbd_position[0]:crop_sbd_position[2]]
 	su.export_img('crop_sbd_img.png', crop_sbd_img)
-	#sbd = get_sbd(crop_sbd_img)
-	#print ("SBD: " + sbd)
+	sbd = get_sbd(crop_sbd_img)
+	print ("SBD: " + sbd)
 
 	block_cnts = get_block_cnts(input_img)
 	ans_block_names = ['', '1_30', '31_60', '61_90', '91_120']
@@ -64,7 +64,7 @@ def binary_search_question_cnt(cnts):
 		question_cnts = find_question_cnt(cnts, mid)
 		size_question_cnts = len(question_cnts)
 
-		print ("mid = " + str(mid) + ", size = " + str(size_question_cnts))
+		#print ("mid = " + str(mid) + ", size = " + str(size_question_cnts))
 		if size_question_cnts == 120:
 			return question_cnts
 
@@ -352,27 +352,8 @@ def get_block_points(input_img, block_cnts, col_index):
 def get_sbd(input_img):
 	input_img = su.get_bigest_frame('sbdinput', input_img)
 	su.export_img('sbd_input.png', input_img)
-
-	gray_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
-	hsv_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2HSV)
-	hsv_img[...,1] = hsv_img[...,1]*2.2
-	low_blue = np.array([80, 50, 60])
-	high_blue = np.array([128, 255, 255])
-	back = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
-	su.export_img('changed.png', back)
-	blue_mask = cv2.inRange(hsv_img, low_blue, high_blue)
-	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-	dilate = cv2.dilate(blue_mask, kernel, iterations=2)
-	su.export_img('blue_mask.png', dilate)
-
-	th3 = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
-                               cv2.THRESH_BINARY, 49, 8)
-	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-	dilate_th3= cv2.dilate(th3, kernel, iterations=2)
-	thresh = ~dilate_th3
-	thresh2s = ~dilate_th3&~dilate
-	su.export_img('thresh2.png', thresh)
-	su.export_img('thresh2s.png', thresh2s)
+	thresh2s = su.removeBlue(input_img)
+	su.export_img('thresh_sbd.png', thresh2s)
 
 	img_height, img_width, img_channels = input_img.shape
 	size_1_col = int(img_width / 10)
