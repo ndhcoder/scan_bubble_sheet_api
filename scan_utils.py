@@ -15,6 +15,14 @@ base_folder = './test_debug/' + str(current_milli_time())
 def mkdir_base_folder():
 	os.mkdir(base_folder)
 
+def convert_to_binary_img(input_img):
+	image = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
+	se = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
+	bg = cv2.morphologyEx(image, cv2.MORPH_DILATE, se)
+	out_gray = cv2.divide(image, bg, scale=255)
+	out_binary = cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU)[1]
+	return [out_binary, out_gray, bg]
+
 def order_points(pts):
 	# initialzie a list of coordinates that will be ordered
 	# such that the first entry in the list is the top-left,
@@ -139,6 +147,32 @@ def get_percent_non_zero(img):
 	non_zero_pixel = cv2.countNonZero(img)
 	return ((non_zero_pixel * 100.0) / img_size)
 
+def sub_list(ls, start, end):
+	results = []
+
+	for i in range(start, end):
+		results.append(ls[i])
+
+	return results
+
+def get_percent_non_zero_with_size(img, img_size):
+	non_zero_pixel = cv2.countNonZero(img)
+	return ((non_zero_pixel * 100.0) / img_size)
+
+# def get_percent_non_zero_mask(name, thresh_img, bg_test):
+# 	cnts = cv2.findContours(thresh_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+# 	h, w = thresh_img.shape
+# 	cnts = imutils.grab_contours(cnts)
+# 	#print (name + "_get_percent_non_zero_mask: " + str(len(cnts)))
+# 	export_img_cnt(name + '_get_percent_non_zero_mask.png', bg_test, cnts, True)
+# 	mask = np.zeros(thresh_img.shape, dtype="uint8")
+# 	cv2.drawContours(mask, cnts, -1, 255, -1)
+# 	mask = cv2.bitwise_and(thresh_img, thresh_img, mask=mask)
+# 	non_zero_pixel = cv2.countNonZero(mask)
+
+# 	return non_zero_pixel#((non_zero_pixel * 100.0) / (w * h))
+
+
 def debug_print(msg):
 	if debug_mode:
 		print (msg)
@@ -153,3 +187,21 @@ def export_img_cnt(name, input_img, cnts, is_create_new_img):
 		cv2.drawContours(export_img, cnts, -1, (0, 255, 0), 3)
 		cv2.imwrite(base_folder + '/' + name, export_img)
 #ok
+def removeBlue(input_img):
+	gray_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
+	hsv_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2HSV)
+	hsv_img[...,1] = hsv_img[...,1]*2.2
+	low_blue = np.array([80, 50, 60])
+	high_blue = np.array([128, 255, 255])
+	back = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
+	blue_mask = cv2.inRange(hsv_img, low_blue, high_blue)
+	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+	dilate = cv2.dilate(blue_mask, kernel, iterations=2)
+	th3 = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
+                               cv2.THRESH_BINARY, 49, 8)
+	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+	dilate_th3= cv2.dilate(th3, kernel, iterations=2)
+	thresh = ~dilate_th3
+	thresh2s = ~dilate_th3&~dilate
+
+	return thresh2s
