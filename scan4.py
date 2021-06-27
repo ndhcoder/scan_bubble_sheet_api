@@ -19,12 +19,17 @@ def test_scan(path_img):
 	crop_sbd_position = (int(951 / max_weight* img_width), int(254 / max_heigh * img_height), int(1430 / max_weight* img_width), int(821 / max_heigh * img_height))
 	crop_sbd_img = input_img[crop_sbd_position[1]:crop_sbd_position[3], crop_sbd_position[0]:crop_sbd_position[2]]
 	su.export_img('crop_sbd_img.png', crop_sbd_img)
-	#sbd = get_sbd(crop_sbd_img)
-	#print ("SBD: " + sbd)
 
+	#get so bao danh
+	sbd = get_sbd(crop_sbd_img)
+	print ("SBD: " + sbd)
+
+
+
+	#gen_answer
 	block_cnts = get_block_cnts(input_img)
 	ans_block_names = ['', '1_30', '31_60', '61_90', '91_120']
-
+	all_ans = []
 	for col_index in range(1, 5):
 		name_block = ans_block_names[col_index]
 		ans_block_img = get_ans_block(input_img, block_cnts, col_index)
@@ -32,6 +37,7 @@ def test_scan(path_img):
 
 		ans, cnts_correct = get_ans(name_block, ans_block_img)
 		su.export_img_cnt('000_' + name_block + '_final.png', ans_block_img, cnts_correct, False)
+		all_ans.extend(ans)
 
 	# ans_block_1_30_img = get_ans_block(input_img, block_cnts, 1)
 	# su.export_img('1_30_ans_block_img.png', ans_block_1_30_img)
@@ -44,7 +50,7 @@ def test_scan(path_img):
 
 	# ans_31_60, cnts_31_60 = get_ans('1_30', ans_block_31_60_img)
 	# su.export_img_cnt('31_60_final.png', ans_block_31_60_img, cnts_31_60, False)
-
+	print (str(all_ans))
 
 def find_min_area(cnts):
 	min_size = 9999999999999
@@ -55,16 +61,26 @@ def find_min_area(cnts):
 
 	return min_size
 
+
+def find_max_area(cnts):
+	max_size = 0
+	for cnt in cnts:
+		(x, y, w, h) = cv2.boundingRect(cnt)
+		if w * h > max_size:
+			max_size = w * h 
+
+	return max_size
+
 def binary_search_question_cnt(cnts):
 	left = 0
 	right = 5000
 	mid = (left + right ) // 2
 
-	while left < right and left != mid and mid != right:
+	while left != mid and mid != right:
 		question_cnts = find_question_cnt(cnts, mid)
 		size_question_cnts = len(question_cnts)
 
-		print ("mid = " + str(mid) + ", size = " + str(size_question_cnts))
+		#print ("mid = " + str(mid) + ", size = " + str(size_question_cnts))
 		if size_question_cnts == 120:
 			return question_cnts
 
@@ -77,14 +93,33 @@ def binary_search_question_cnt(cnts):
 
 	return []
 
+def abs(x):
+	return x if x > 0 else -x
+
+def min_dist(x, arr):
+	if len(arr) == 0:
+		return 9999999999999
+
+	min_d = 9999999999999
+	for a in arr:
+		if abs(x - a) < min_d:
+			min_d = abs(x - a)
+
+	return min_d
+
 def find_question_cnt(cnts, min_area):
 	question_cnts = []
+	map_x = []
+
 	for cnt in cnts:
 		(x, y, w, h) = cv2.boundingRect(cnt)
 		ar = w / float(h)
 		area = w * h #cv2.contourArea(cnt)
-		if (x > 0 or y > 0) and ar > 0.5 and ar < 1.5 and area > min_area:
+		#mdist = min_dist(x, map_x)
+		if (x > 0 or y > 0) and ar > 0.5 and ar < 1.5 and area >= min_area:
 			#print (str(area) + ", w=" + str(w) + ", h=" + str(h))
+			map_x.append(x)
+			#print (str(mdist) + " (mibn)")
 			question_cnts.append(cnt)
 
 	return question_cnts
@@ -127,21 +162,22 @@ def find_block_cnt(img_width, img_height, right_border_from, bottom_border_from,
 def get_ans(name, ans_block_img):
 	#su.export_img(name + '.png', input_img)
 	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(ans_block_img)
+	thresh_bg = su.convert_to_binary_img2(ans_block_img)
 
 	su.export_img(name + 'ans_block_binary_img.png', ans_block_binary_img)
-	su.export_img(name + 'ans_block_outgray_img.png', ans_block_outgray_img)
-	su.export_img(name + 'ans_block_bg_img.png', ans_block_bg_img)
+	#su.export_img(name + 'ans_block_outgray_img.png', ans_block_outgray_img)
+	#su.export_img(name + 'ans_block_bg_img.png', ans_block_bg_img)
 	thresh = cv2.adaptiveThreshold(ans_block_binary_img, maxValue=255,
 								   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
 								   thresholdType=cv2.THRESH_BINARY_INV,
 								   blockSize=15,
 								   C=8)
 
-	thresh_bg = cv2.adaptiveThreshold(ans_block_bg_img, maxValue=255,
-								   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
-								   thresholdType=cv2.THRESH_BINARY_INV,
-								   blockSize=15,
-								   C=8)
+	# thresh_bg = cv2.adaptiveThreshold(ans_block_binary_img, maxValue=255,
+	# 							   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
+	# 							   thresholdType=cv2.THRESH_BINARY_INV,
+	# 							   blockSize=15,
+	# 							   C=8)
 
 	su.export_img(name + '_thresh.png', thresh)
 	su.export_img(name + '_thresh_bg.png', thresh_bg)
@@ -167,28 +203,30 @@ def get_ans(name, ans_block_img):
 	max_percent = 0
 	result_item_text = ['A', 'B', 'C', 'D']
 
-	min_size = find_min_area(question_cnts)
+	#min_size = find_min_area(question_cnts)
+	max_size = find_max_area(question_cnts)
 	for (q, i) in enumerate(np.arange(0, size_question_cnts, 4)):
 		question_row_cnts = contours.sort_contours(question_cnts[i:(i+4)],
 											  method="left-to-right")[0]
 
 		for cnt in question_row_cnts:
-			results.append('-')
 			(x, y, w, h) = cv2.boundingRect(cnt)
 			question_item = thresh_bg[y:(y + h), x:(x + w)]
 			#su.export_img(name + '_question' + str(index_question + 1) + '.png', question_item)
-			percent_non_zero = su.get_percent_non_zero_with_size(question_item, min_size)
+			percent_non_zero = su.get_percent_non_zero_with_size(question_item, max_size)
 			#non_zero = su.get_percent_non_zero_mask(str(index_question), question_item, ans_block_img[y:(y + h), x:(x + w)])
-			#su.debug_print(str(index_question + 1) + " with percent: " + str(percent_non_zero))
+			su.debug_print(str(index_question + 1) + " with percent: " + str(percent_non_zero))
 			index_question += 1
 			percents.append({'value': percent_non_zero, 'cnt': cnt})
 			if percent_non_zero > max_percent:
 				max_percent = percent_non_zero
 
-	max_percent = 27 if max_percent < 27 else max_percent
-	temp = max_percent / 1.7
-	min_percent_correct = temp if temp > 23 else 23
+	max_percent = 50 if max_percent < 50 else max_percent
+	temp = max_percent / 2
+	min_percent_correct = 35 if temp > 35 else temp
 	cnts_correct = []
+
+	print ("max_percent=" + str(max_percent) + ", min_percent=" + str(min_percent_correct))
 	for (q, i) in enumerate(np.arange(0, size_question_cnts, 4)):
 		index_ans = 0
 		result_item = ''
@@ -342,7 +380,7 @@ def get_sbd(input_img):
 	for i in range(0, 10):
 		for j in range(0, 10):
 			square = thresh2s[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
-			su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
+			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
 			# mask = np.zeros(square.shape, dtype="uint8")
 			# cv2.drawContours(mask, , -1, 255, -1)
 			# mask = cv2.bitwise_and(square, square, mask=mask)
@@ -350,14 +388,14 @@ def get_sbd(input_img):
 			#cnts_square = cv2.findContours(square, cv2.RETR_LIST,
 			#			cv2.CHAIN_APPROX_SIMPLE)
 			#cnts_square = imutils.grab_contours(cnts_square)
-			su.export_img('cnt_square_' + str(i) + '_' + str(j) + '.png', square)
+			#su.export_img('cnt_square_' + str(i) + '_' + str(j) + '.png', square)
 			percent_non_zero = su.get_percent_non_zero(square)
-			su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
+			#su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
 			if percent_non_zero > 8:
 				sbd[j] = str(i)
 
 
 	return ''.join(sbd)
 
-path_img = 'E:\\hgedu-test\\kt5.png'
+path_img = 'E:\\hgedu-test\\kt1.png'
 test_scan(path_img)

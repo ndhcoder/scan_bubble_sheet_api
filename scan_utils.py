@@ -17,11 +17,35 @@ def mkdir_base_folder():
 
 def convert_to_binary_img(input_img):
 	image = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
-	se = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
+	se = cv2.getStructuringElement(cv2.MORPH_RECT, (20, 20))
 	bg = cv2.morphologyEx(image, cv2.MORPH_DILATE, se)
 	out_gray = cv2.divide(image, bg, scale=255)
 	out_binary = cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU)[1]
 	return [out_binary, out_gray, bg]
+
+def convert_to_binary_img2(input_img):
+	image = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
+	se = cv2.getStructuringElement(cv2.MORPH_RECT, (16, 16))
+	bg = cv2.morphologyEx(image, cv2.MORPH_DILATE, se)
+	#export_img('bg.png', bg)
+	blur = cv2.GaussianBlur(bg, (9, 9), 0)
+	#export_img('blur.png', bg)
+
+	out_gray = cv2.divide(image, bg, scale=255)
+	out_binary = cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU)[1]
+	#export_img('out_gray.png', out_gray)
+	#export_img('out_binary.png', out_binary)
+
+	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (12, 12))
+	final_erode = cv2.erode(blur, kernel)
+	#export_img('er.png', final_erode)
+
+	thresh = cv2.adaptiveThreshold(final_erode, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+								   cv2.THRESH_BINARY_INV, 81, 12)
+	#export_img('thresh.png', thresh)
+	median_blur = cv2.medianBlur(thresh, 15)
+	#export_img('final.png', median_blur)
+	return median_blur
 
 def order_points(pts):
 	# initialzie a list of coordinates that will be ordered
@@ -198,7 +222,7 @@ def removeBlue(input_img):
 	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
 	dilate = cv2.dilate(blue_mask, kernel, iterations=2)
 	th3 = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
-                               cv2.THRESH_BINARY, 49, 8)
+							   cv2.THRESH_BINARY, 49, 8)
 	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
 	dilate_th3= cv2.dilate(th3, kernel, iterations=2)
 	thresh = ~dilate_th3
