@@ -34,7 +34,10 @@ def scan_exam(path_img):
 	print ("Exam Code: " + exam_code)
 
 	#get answers
-	block_cnts = get_block_cnts(input_img)
+	block_cnts = binary_search_get_block_cnts(input_img)#get_block_cnts(input_img, 200)
+	if len(block_cnts) != 59:
+		raise Exception('find size block error: ' + str(size_block))
+
 	ans_block_names = ['', '1_30', '31_60', '61_90', '91_120']
 	all_ans = []
 
@@ -139,7 +142,7 @@ def binary_search_block_cnt(img_width, img_height, right_border_from, bottom_bor
 	right = 5000
 	mid = (left + right ) // 2
 	expect_size = 59
-
+	result_cnts = []
 	while left < right and left != mid and mid != right:
 		result_cnts = find_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts, mid)
 		size_cnts = len(result_cnts)
@@ -155,17 +158,23 @@ def binary_search_block_cnt(img_width, img_height, right_border_from, bottom_bor
 			left = mid 
 			mid = (left + right) // 2
 
-	return []
+	return result_cnts
 
 def find_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts, min_area):
 	block_cnts = []
+	map_xy = []
+	index = 0
 	for cnt in cnts:
 		(x, y, w, h) = cv2.boundingRect(cnt)
 		ar = w / float(h)
 		area = w * h #cv2.contourArea(cnt)
-		if area >= min_area and (x > right_border_from or y > bottom_border_from) and ar > 1.5 and ar < 4 and (x + w) < (img_width - 10) and (y + h) < (img_height - 10):
+		mind = min_dist(x, y, map_xy)
+		if (index == 0 or mind > 500) and area >= min_area and (x > right_border_from or y > bottom_border_from) and ar > 1.3 and ar < 4 and (x + w) < (img_width) and (y + h) < (img_height):
 			#print (str(area) + ", w=" + str(w) + ", h=" + str(h))
 			block_cnts.append(cnt)
+			#print ("mind: " + str(mind))
+			map_xy.append({'x': x, 'y': y})
+			index += 1
 
 	return block_cnts
 
@@ -270,42 +279,73 @@ def get_ans_block(input_img, block_cnts, col_index):
 	#print ('shape: ' + str(warped.shape))
 	return warped[0:(h - 60),0:w]
 
+def binary_search_get_block_cnts(input_img):
+	left = 50
+	right = 300
+	mid = (left + right ) // 2
+	expect_size = 59
+	result_cnts = []
+	while left < right and left != mid and mid != right:
+		result_cnts = get_block_cnts(input_img, mid)
+		size_cnts = len(result_cnts)
+
+		#print ("mid = " + str(mid) + ", size = " + str(size_cnts))
+		if size_cnts == expect_size:
+			return result_cnts
+
+		if size_cnts < expect_size:
+			right = mid
+			mid = (left + right) // 2
+		else:
+			left = mid 
+			mid = (left + right) // 2
+
+	return result_cnts
 # 
 # Get 59 border around block points
 #
-def get_block_cnts(input_img):
+def get_block_cnts(input_img, offset_bottom):
 	img_height, img_width = input_img.shape[0:2]
 	right_border_from = int(img_width - img_width/15)
-	bottom_border_from = img_height - 200
+	bottom_border_from = img_height - offset_bottom
 
-	crop_border_right = input_img[0:img_height, right_border_from:(img_width - 10)]
-	crop_border_bottom = input_img[bottom_border_from:(img_height - 10), 0:img_width]
+	crop_border_right = input_img[0:img_height, right_border_from:(img_width)]
+	crop_border_bottom = input_img[bottom_border_from:(img_height), 0:img_width]
 	su.export_img('crop_border_right.png', crop_border_right)
 	su.export_img('crop_border_bottom.png', crop_border_bottom)
 
-	gray = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
-	# remove noise by blur image
-	blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(input_img)
+	# thresh_bg = cv2.adaptiveThreshold(ans_block_bg_img, maxValue=255,
+	# 							   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
+	# 							   thresholdType=cv2.THRESH_BINARY_INV,
+	# 							   blockSize=15,
+	# 							   C=8)
+	# gray = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
+	# # remove noise by blur image
+	# blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-	# apply canny edge detection algorithm
-	#img_canny = cv2.Canny(blurred, 0, 300)
-	edged_img = cv2.Canny(blurred, 0, 200)
-	thresh = cv2.adaptiveThreshold(blurred, maxValue=255,
+	# # apply canny edge detection algorithm
+	# #img_canny = cv2.Canny(blurred, 0, 300)
+	# edged_img = cv2.Canny(blurred, 0, 200)
+	thresh = cv2.adaptiveThreshold(ans_block_binary_img, maxValue=255,
 								   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
 								   thresholdType=cv2.THRESH_BINARY_INV,
 								   blockSize=15,
 								   C=8)
 	
-	su.export_img('block_edged_img.png', edged_img)
+	#su.export_img('block_edged_img.png', edged_img)
 	su.export_img('block_thresh.png', thresh)
 	cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 		cv2.CHAIN_APPROX_SIMPLE)
 	cnts = imutils.grab_contours(cnts)
+	su.export_img_cnt('block_cnts_all.png', input_img, cnts, True)
 	block_cnts = binary_search_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts)
 	size_block = len(block_cnts)	
 	su.debug_print('size_block: ' + str(size_block))
+	su.export_img_cnt('block_cnts.png', input_img, block_cnts, True)
+
 	if size_block != 59:
-		raise Exception('find size block error: ' + str(size_block))
+		return block_cnts#$Exception('find size block error: ' + str(size_block))
 
 	block_cnts = contours.sort_contours(block_cnts,
 		method="top-to-bottom")[0]
@@ -341,11 +381,13 @@ def get_block_points(input_img, block_cnts, col_index):
 	# su.export_img_cnt('block_cnt_row_sorted_0.png', input_img, block_cnts_row[1:2], True)
 	# su.export_img_cnt('block_cnt_row_sorted_17.png', input_img, block_cnts_row[16:17], True)
 
-	penaty = 40
-	top_left = (first_row_x - penaty, first_col_y - penaty)
-	top_right = (last_row_x + last_row_w + penaty, first_col_y - penaty)
-	bottom_right = (last_row_x + last_row_w + penaty, last_row_y + penaty)
-	bottom_left = (first_row_x - penaty, first_row_y + penaty)
+	penaty_left = 20
+	penaty_right = 40
+	penaty_vertical = 40
+	top_left = (first_row_x - penaty_left, first_col_y - penaty_vertical)
+	top_right = (last_row_x + last_row_w + penaty_right, first_col_y - penaty_vertical)
+	bottom_right = (last_row_x + last_row_w + penaty_right, last_row_y + penaty_vertical)
+	bottom_left = (first_row_x - penaty_left, first_row_y + penaty_vertical)
 
 	su.export_img(str(col_index) + '_block_before.png', input_img[top_left[1]:bottom_left[1], top_left[0]:top_right[0]])
 	return su.order_points(np.array([top_left, top_right, bottom_right, bottom_left]))
@@ -438,5 +480,5 @@ def get_exam_code_detail(name, exam_code_block_img):
 	return ''.join(exam_code)
 
 
-#path_img = 'E:\\hgedu-test\\Test\\Test\\1.png'#'E:\\hgedu-test\\kt1.png'
-#scan_exam(path_img)
+# path_img = 'E:\\hgedu-test\\kt5.png'#'E:\\hgedu-test\\kt1.png'
+# scan_exam(path_img)
