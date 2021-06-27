@@ -56,15 +56,15 @@ def find_min_area(cnts):
 	return min_size
 
 def binary_search_question_cnt(cnts):
-	left = 200
-	right = 2000
+	left = 0
+	right = 5000
 	mid = (left + right ) // 2
 
 	while left < right and left != mid and mid != right:
 		question_cnts = find_question_cnt(cnts, mid)
 		size_question_cnts = len(question_cnts)
 
-		#print ("mid = " + str(mid) + ", size = " + str(size_question_cnts))
+		print ("mid = " + str(mid) + ", size = " + str(size_question_cnts))
 		if size_question_cnts == 120:
 			return question_cnts
 
@@ -89,6 +89,40 @@ def find_question_cnt(cnts, min_area):
 
 	return question_cnts
 
+def binary_search_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts):
+	left = 0
+	right = 5000
+	mid = (left + right ) // 2
+	expect_size = 59
+
+	while left < right and left != mid and mid != right:
+		result_cnts = find_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts, mid)
+		size_cnts = len(result_cnts)
+
+		print ("mid = " + str(mid) + ", size = " + str(size_cnts))
+		if size_cnts == expect_size:
+			return result_cnts
+
+		if size_cnts < expect_size:
+			right = mid
+			mid = (left + right) // 2
+		else:
+			left = mid 
+			mid = (left + right) // 2
+
+	return []
+
+def find_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts, min_area):
+	block_cnts = []
+	for cnt in cnts:
+		(x, y, w, h) = cv2.boundingRect(cnt)
+		ar = w / float(h)
+		area = w * h #cv2.contourArea(cnt)
+		if area >= min_area and (x > right_border_from or y > bottom_border_from) and ar > 1.5 and ar < 4 and (x + w) < (img_width - 10) and (y + h) < (img_height - 10):
+			#print (str(area) + ", w=" + str(w) + ", h=" + str(h))
+			block_cnts.append(cnt)
+
+	return block_cnts
 
 def get_ans(name, ans_block_img):
 	#su.export_img(name + '.png', input_img)
@@ -151,9 +185,9 @@ def get_ans(name, ans_block_img):
 			if percent_non_zero > max_percent:
 				max_percent = percent_non_zero
 
-	max_percent = 33 if max_percent < 33 else max_percent
+	max_percent = 27 if max_percent < 27 else max_percent
 	temp = max_percent / 1.7
-	min_percent_correct = temp if temp > 24 else 24
+	min_percent_correct = temp if temp > 23 else 23
 	cnts_correct = []
 	for (q, i) in enumerate(np.arange(0, size_question_cnts, 4)):
 		index_ans = 0
@@ -176,7 +210,7 @@ def get_ans_block(input_img, block_cnts, col_index):
 	pts = get_block_points(input_img, block_cnts, col_index)
 	warped = su.four_point_transform(input_img, pts)
 	h,w,c = warped.shape
-	print ('shape: ' + str(warped.shape))
+	#print ('shape: ' + str(warped.shape))
 	return warped[0:(h - 60),0:w]
 
 # 
@@ -185,7 +219,7 @@ def get_ans_block(input_img, block_cnts, col_index):
 def get_block_cnts(input_img):
 	img_height, img_width = input_img.shape[0:2]
 	right_border_from = int(img_width - img_width/15)
-	bottom_border_from = img_height - 250
+	bottom_border_from = img_height - 200
 
 	crop_border_right = input_img[0:img_height, right_border_from:(img_width - 10)]
 	crop_border_bottom = input_img[bottom_border_from:(img_height - 10), 0:img_width]
@@ -222,19 +256,13 @@ def get_block_cnts(input_img):
 
 	su.export_img_cnt('block_cnt.png', input_img, block_cnts, True)
 	size_block = len(block_cnts)
-	su.debug_print('size_block: ' + str(size_block))
+	su.debug_print('size_block_1: ' + str(size_block))
 
 	if size_block != 59:
-		block_cnts = []
-		for cnt in cnts:
-			(x, y, w, h) = cv2.boundingRect(cnt)
-			ar = w / float(h)
-			area = w * h#cv2.contourArea(cnt)
-			if area > 300 and (x > right_border_from or y > bottom_border_from) and ar > 1.5 and ar < 4 and (x + w) < (img_width - 10) and (y + h) < (img_height - 10):
-				#print (area)
-				block_cnts.append(cnt)
+		block_cnts = binary_search_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts)
 		size_block = len(block_cnts)	
 
+	su.debug_print('size_block_2: ' + str(size_block))
 	if size_block != 59:
 		raise Exception('find size block error: ' + str(size_block))
 
@@ -272,7 +300,7 @@ def get_block_points(input_img, block_cnts, col_index):
 	# su.export_img_cnt('block_cnt_row_sorted_0.png', input_img, block_cnts_row[1:2], True)
 	# su.export_img_cnt('block_cnt_row_sorted_17.png', input_img, block_cnts_row[16:17], True)
 
-	penaty = 20
+	penaty = 40
 	top_left = (first_row_x - penaty, first_col_y - penaty)
 	top_right = (last_row_x + last_row_w + penaty, first_col_y - penaty)
 	bottom_right = (last_row_x + last_row_w + penaty, last_row_y + penaty)
@@ -331,5 +359,5 @@ def get_sbd(input_img):
 
 	return ''.join(sbd)
 
-path_img = 'E:\\hgedu-test\\kt4.png'
+path_img = 'E:\\hgedu-test\\kt5.png'
 test_scan(path_img)
