@@ -13,6 +13,7 @@ debug_mode = True
 base_folder = './test_debug/' + str(current_milli_time())
 
 def mkdir_base_folder():
+	base_folder = './test_debug/' + str(current_milli_time())
 	os.mkdir(base_folder)
 
 def convert_to_binary_img(input_img):

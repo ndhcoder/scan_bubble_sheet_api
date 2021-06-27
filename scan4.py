@@ -8,9 +8,9 @@ import traceback
 import scan_utils as su
 
 debug_mode = True
-su.mkdir_base_folder()
 
-def test_scan(path_img):
+def scan_exam(path_img):
+	su.mkdir_base_folder()
 	input_img = cv2.imread(path_img)
 	#input_img = su.convert_to_binary_img(input_img)
 	img_height, img_width = input_img.shape[0:2]
@@ -36,6 +36,7 @@ def test_scan(path_img):
 	#get answers
 	block_cnts = get_block_cnts(input_img)
 	ans_block_names = ['', '1_30', '31_60', '61_90', '91_120']
+	all_ans = []
 
 	for col_index in range(1, 5):
 		name_block = ans_block_names[col_index]
@@ -44,6 +45,7 @@ def test_scan(path_img):
 
 		ans, cnts_correct = get_ans(name_block, ans_block_img, col_index)
 		su.export_img_cnt('000_' + name_block + '_final.png', ans_block_img, cnts_correct, False)
+		all_ans.extend(ans)
 
 	# ans_block_1_30_img = get_ans_block(input_img, block_cnts, 1)
 	# su.export_img('1_30_ans_block_img.png', ans_block_1_30_img)
@@ -56,7 +58,12 @@ def test_scan(path_img):
 
 	# ans_31_60, cnts_31_60 = get_ans('1_30', ans_block_31_60_img)
 	# su.export_img_cnt('31_60_final.png', ans_block_31_60_img, cnts_31_60, False)
-
+	return {
+		'answers': all_ans,
+		'student_code': sbd,
+		'exam_code': exam_code
+	}
+	
 
 def find_min_area(cnts):
 	min_size = 9999999999999
@@ -225,7 +232,6 @@ def get_ans(name, ans_block_img, col_index):
 											  method="left-to-right")[0]
 
 		for cnt in question_row_cnts:
-			results.append('-')
 			(x, y, w, h) = cv2.boundingRect(cnt)
 			question_item = thresh_bg[y:(y + h), x:(x + w)]
 			#su.export_img(name + '_question' + str(index_question + 1) + '.png', question_item)
@@ -411,4 +417,4 @@ def get_exam_code(input_img):
 	return ''.join(exam_code)
 
 path_img = 'E:\\hgedu-test\\kt1.png'
-test_scan(path_img)
+scan_exam(path_img)
