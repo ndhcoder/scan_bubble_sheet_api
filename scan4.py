@@ -16,12 +16,24 @@ def test_scan(path_img):
 	img_height, img_width = input_img.shape[0:2]
 	max_weight=1807
 	max_heigh=2555
+
+	#get sbd
 	crop_sbd_position = (int(951 / max_weight* img_width), int(254 / max_heigh * img_height), int(1430 / max_weight* img_width), int(821 / max_heigh * img_height))
 	crop_sbd_img = input_img[crop_sbd_position[1]:crop_sbd_position[3], crop_sbd_position[0]:crop_sbd_position[2]]
 	su.export_img('crop_sbd_img.png', crop_sbd_img)
 	sbd = get_sbd(crop_sbd_img)
 	print ("SBD: " + sbd)
 
+	#get exam code
+	crop_exam_code = (
+		int(1418 / max_weight* img_width), int(254 / max_heigh * img_height), int(1726 / max_weight* img_width),
+		int(821 / max_heigh * img_height))
+	crop_img_exam_code = input_img[crop_exam_code[1]:crop_exam_code[3], crop_exam_code[0]:crop_exam_code[2]]
+	su.export_img('crop_exam_code_img.png', crop_img_exam_code)
+	exam_code = get_exam_code(crop_img_exam_code)
+	print ("Exam Code: " + exam_code)
+
+	#get answers
 	block_cnts = get_block_cnts(input_img)
 	ans_block_names = ['', '1_30', '31_60', '61_90', '91_120']
 
@@ -284,25 +296,9 @@ def get_block_cnts(input_img):
 	cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 		cv2.CHAIN_APPROX_SIMPLE)
 	cnts = imutils.grab_contours(cnts)
-
-	block_cnts = []
-	for cnt in cnts:
-		(x, y, w, h) = cv2.boundingRect(cnt)
-		ar = w / float(h)
-		area = cv2.contourArea(cnt)
-		if (x > right_border_from or y > bottom_border_from) and ar > 1.5 and ar < 4 and (x + w) < (img_width - 10) and (y + h) < (img_height - 10):
-			#print (str(area) + ", w=" + str(w) + ", h=" + str(h))
-			block_cnts.append(cnt)
-
-	su.export_img_cnt('block_cnt.png', input_img, block_cnts, True)
-	size_block = len(block_cnts)
-	su.debug_print('size_block_1: ' + str(size_block))
-
-	if size_block != 59:
-		block_cnts = binary_search_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts)
-		size_block = len(block_cnts)	
-
-	su.debug_print('size_block_2: ' + str(size_block))
+	block_cnts = binary_search_block_cnt(img_width, img_height, right_border_from, bottom_border_from, cnts)
+	size_block = len(block_cnts)	
+	su.debug_print('size_block: ' + str(size_block))
 	if size_block != 59:
 		raise Exception('find size block error: ' + str(size_block))
 
@@ -359,11 +355,12 @@ def get_sbd(input_img):
 	size_1_col = int(img_width / 10)
 	size_1_row = int(img_height / 10)
 	sbd = list("----------")
-    
+	sbd_percent = [0,0,0,0,0,0,0,0,0,0]
+	
 	for i in range(0, 10):
 		for j in range(0, 10):
 			square = thresh2s[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
-			su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
+			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
 			# mask = np.zeros(square.shape, dtype="uint8")
 			# cv2.drawContours(mask, , -1, 255, -1)
 			# mask = cv2.bitwise_and(square, square, mask=mask)
@@ -371,14 +368,47 @@ def get_sbd(input_img):
 			#cnts_square = cv2.findContours(square, cv2.RETR_LIST,
 			#			cv2.CHAIN_APPROX_SIMPLE)
 			#cnts_square = imutils.grab_contours(cnts_square)
-			su.export_img('cnt_square_' + str(i) + '_' + str(j) + '.png', square)
+			#su.export_img('cnt_square_' + str(i) + '_' + str(j) + '.png', square)
 			percent_non_zero = su.get_percent_non_zero(square)
-			su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
-			if percent_non_zero > 8:
+			#su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
+			if percent_non_zero > sbd_percent[j]:
+				sbd_percent[j] = percent_non_zero
 				sbd[j] = str(i)
 
 
 	return ''.join(sbd)
 
-path_img = 'E:\\hgedu-test\\kt5.png'
+def get_exam_code(input_img):
+	input_img = su.get_bigest_frame('exam_code_input', input_img)
+	su.export_img('exam_code_input.png', input_img)
+	thresh2s = su.removeBlue(input_img)
+	su.export_img('thresh_exam_code.png', thresh2s)
+
+	img_height, img_width, img_channels = input_img.shape
+	size_1_col = int(img_width / 6)
+	size_1_row = int(img_height / 10)
+	exam_code = list("------")
+	exam_code_percent = [0,0,0,0,0,0]
+
+	for i in range(0, 10):
+		for j in range(0, 6):
+			square = thresh2s[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
+			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
+			# mask = np.zeros(square.shape, dtype="uint8")
+			# cv2.drawContours(mask, , -1, 255, -1)
+			# mask = cv2.bitwise_and(square, square, mask=mask)
+			# total = cv2.countNonZero(mask)
+			#cnts_square = cv2.findContours(square, cv2.RETR_LIST,
+			#			cv2.CHAIN_APPROX_SIMPLE)
+			#cnts_square = imutils.grab_contours(cnts_square)
+			#su.export_img('exam_code_square_' + str(i) + '_' + str(j) + '.png', square)
+			percent_non_zero = su.get_percent_non_zero(square)
+			#su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
+			if percent_non_zero > exam_code_percent[j]:
+				exam_code_percent[j] = percent_non_zero
+				exam_code[j] = str(i)
+
+	return ''.join(exam_code)
+
+path_img = 'E:\\hgedu-test\\kt1.png'
 test_scan(path_img)
