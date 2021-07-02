@@ -34,33 +34,28 @@ def scan_exam(path_img):
 	print ("Exam Code: " + exam_code)
 
 	#get answers
-	block_cnts = binary_search_get_block_cnts(input_img)#get_block_cnts(input_img, 200)
-	if len(block_cnts) != 59:
+	block_cnts = binary_search_get_block_cnts(input_img, 300)#get_block_cnts(input_img, 200)
+	size_block = len(block_cnts)
+	if size_block != 59:
+		block_cnts = binary_search_get_block_cnts(input_img, 500)
+		size_block = len(block_cnts)
+
+	if size_block != 59:
 		raise Exception('find size block error: ' + str(size_block))
 
 	ans_block_names = ['', '1_30', '31_60', '61_90', '91_120']
 	all_ans = []
+	cache_percent = {'min': 0, 'max': 0}
 
 	for col_index in range(1, 5):
 		name_block = ans_block_names[col_index]
 		ans_block_img = get_ans_block(input_img, block_cnts, col_index)
 		su.export_img(name_block + '_ans_block_img.png', ans_block_img)
 
-		ans, cnts_correct = get_ans(name_block, ans_block_img, col_index)
+		ans, cnts_correct = get_ans(name_block, ans_block_img, col_index, cache_percent)
 		su.export_img_cnt('000_' + name_block + '_final.png', ans_block_img, cnts_correct, False)
 		all_ans.extend(ans)
-
-	# ans_block_1_30_img = get_ans_block(input_img, block_cnts, 1)
-	# su.export_img('1_30_ans_block_img.png', ans_block_1_30_img)
-
-	# ans_1_30, cnts_1_30 = get_ans('1_30', ans_block_1_30_img)
-	# su.export_img_cnt('1_30_final.png', ans_block_1_30_img, cnts_1_30, False)
-
-	# ans_block_31_60_img = get_ans_block(input_img, block_cnts, 2)
-	# su.export_img('31_60_ans_block_img.png', ans_block_31_60_img)
-
-	# ans_31_60, cnts_31_60 = get_ans('1_30', ans_block_31_60_img)
-	# su.export_img_cnt('31_60_final.png', ans_block_31_60_img, cnts_31_60, False)
+		
 	return {
 		'answers': all_ans,
 		'student_code': sbd,
@@ -178,7 +173,65 @@ def find_block_cnt(img_width, img_height, right_border_from, bottom_border_from,
 
 	return block_cnts
 
-def get_ans(name, ans_block_img, col_index):
+def find_mid_points(arr, dis_avg, dis_arr):
+	result = -1 
+	max_dis = 0
+	arr.sort()
+	for a in arr:
+		cal = cal_mid_points(arr, a, dis_avg, dis_arr)
+		
+		if cal['accept'] and cal['distance_arr'] > max_dis:
+			result = a 
+			max_dis = cal['distance_arr']
+
+	return result
+
+
+def cal_mid_points(arr, mid, dis_avg, dis_arr):
+	arr1 = []
+	arr2 = []
+	count1 = 0
+	count2 = 0
+	sum1 = 0
+	sum2 = 0
+	max_arr1 = 0
+	min_arr2 = 999999999
+
+	for a in arr:
+		if a <= mid: 
+			arr1.append(a)
+			count1 += 1
+			sum1 += a
+			if a > max_arr1:
+				max_arr1 = a
+		else:
+			count2 += 1
+			sum2 += a
+			arr2.append(a)
+			if a < min_arr2:
+				min_arr2 = a 
+
+	if sum1 == 0 or sum2 == 0:
+		return {'accept': False}
+
+	avg1 = sum1 / count1 
+	avg2 = sum2 / count2
+
+	real_dis_avg = avg2 - avg1
+	real_dis_arr = min_arr2 - max_arr1
+
+	#print ("find_cal_point: mid=" + str(mid) + " dis_avg=" + str(real_dis_avg) + ", dis_arr=" + str(real_dis_arr) + ", max_arr1=" + str(max_arr1) + ", min_arr2=" + str(min_arr2))
+
+	if avg2 - avg1 < dis_avg:
+		return {'accept': False}
+
+	if min_arr2 - max_arr1 < dis_arr:
+		return {'accept': False}
+
+	return {'accept': True, 'distance_avg': avg2 - avg1, 'distance_arr': min_arr2 - max_arr1}
+
+
+def get_ans(name, ans_block_img, col_index, cache_percent):
 	#su.export_img(name + '.png', input_img)
 	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(ans_block_img)
 
@@ -231,6 +284,7 @@ def get_ans(name, ans_block_img, col_index):
 	method="top-to-bottom")[0]
 	results = []
 	percents = []
+	only_percents = []
 	max_percent = 0
 	result_item_text = ['A', 'B', 'C', 'D']
 
@@ -248,19 +302,27 @@ def get_ans(name, ans_block_img, col_index):
 			#su.debug_print(str(index_question + 1) + " with percent: " + str(percent_non_zero))
 			index_question += 1
 			percents.append({'value': percent_non_zero, 'cnt': cnt})
+			only_percents.append(percent_non_zero)
 			if percent_non_zero > max_percent:
 				max_percent = percent_non_zero
 
 	max_percent = 27 if max_percent < 27 else max_percent
 	temp = max_percent / 1.7
-	min_percent_correct = temp if temp > 23 else 23
+	min_percent_correct = temp if temp > 20 else 20
+
+	point_avg = find_mid_points(only_percents, 15, 2)
+	print ("point_avg: " + str(point_avg))
+	min_percent_correct = point_avg
+
 	cnts_correct = []
+	print ("min_percent_correct: " + str(min_percent_correct) + ", max_percent=" + str(max_percent))
 	for (q, i) in enumerate(np.arange(0, size_question_cnts, 4)):
 		index_ans = 0
 		result_item = ''
 		temp_percents = su.sub_list(percents, i, i + 4)
 		for percent in temp_percents:
-			if percent['value'] > min_percent_correct:
+			#print ("q: " + str(len(results) + 1) + ": " + str(percent['value']))
+			if percent['value'] > min_percent_correct and min_percent_correct > 0:
 				result_item += result_item_text[index_ans]
 				cnts_correct.append(percent['cnt'])
 			index_ans+= 1
@@ -279,9 +341,8 @@ def get_ans_block(input_img, block_cnts, col_index):
 	#print ('shape: ' + str(warped.shape))
 	return warped[0:(h - 60),0:w]
 
-def binary_search_get_block_cnts(input_img):
+def binary_search_get_block_cnts(input_img, right):
 	left = 50
-	right = 300
 	mid = (left + right ) // 2
 	expect_size = 59
 	result_cnts = []
@@ -315,18 +376,6 @@ def get_block_cnts(input_img, offset_bottom):
 	su.export_img('crop_border_bottom.png', crop_border_bottom)
 
 	ans_block_binary_img, ans_block_outgray_img, ans_block_bg_img = su.convert_to_binary_img(input_img)
-	# thresh_bg = cv2.adaptiveThreshold(ans_block_bg_img, maxValue=255,
-	# 							   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
-	# 							   thresholdType=cv2.THRESH_BINARY_INV,
-	# 							   blockSize=15,
-	# 							   C=8)
-	# gray = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
-	# # remove noise by blur image
-	# blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-	# # apply canny edge detection algorithm
-	# #img_canny = cv2.Canny(blurred, 0, 300)
-	# edged_img = cv2.Canny(blurred, 0, 200)
 	thresh = cv2.adaptiveThreshold(ans_block_binary_img, maxValue=255,
 								   adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C,
 								   thresholdType=cv2.THRESH_BINARY_INV,
@@ -343,6 +392,7 @@ def get_block_cnts(input_img, offset_bottom):
 	size_block = len(block_cnts)	
 	su.debug_print('size_block: ' + str(size_block))
 	su.export_img_cnt('block_cnts.png', input_img, block_cnts, True)
+	su.export_img('block_cnts_crop.png', input_img[0])
 
 	if size_block != 59:
 		return block_cnts#$Exception('find size block error: ' + str(size_block))
@@ -425,17 +475,8 @@ def get_sbd_detail(name, sbd_block_img):
 	for i in range(0, 10):
 		for j in range(0, 10):
 			square = thresh_bg[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
-			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
-			# mask = np.zeros(square.shape, dtype="uint8")
-			# cv2.drawContours(mask, , -1, 255, -1)
-			# mask = cv2.bitwise_and(square, square, mask=mask)
-			# total = cv2.countNonZero(mask)
-			#cnts_square = cv2.findContours(square, cv2.RETR_LIST,
-			#			cv2.CHAIN_APPROX_SIMPLE)
-			#cnts_square = imutils.grab_contours(cnts_square)
-			#su.export_img('cnt_square_' + str(i) + '_' + str(j) + '.png', square)
+			#su.export_img(name + '_square_' + str(i) + '_' + str(j) + '.jpg', square)
 			percent_non_zero = su.get_percent_non_zero(square)
-			#su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
 			if percent_non_zero > sbd_percent[j]:
 				sbd_percent[j] = percent_non_zero
 				sbd[j] = str(i)
@@ -462,17 +503,8 @@ def get_exam_code_detail(name, exam_code_block_img):
 	for i in range(0, 10):
 		for j in range(0, 6):
 			square = thresh_bg[int((i * size_1_row)):int(((i + 1) * size_1_row)), int((j * size_1_col)):int(((j + 1) * size_1_col))]
-			#su.export_img('square_' + str(i) + '_' + str(j) + '.png', square)
-			# mask = np.zeros(square.shape, dtype="uint8")
-			# cv2.drawContours(mask, , -1, 255, -1)
-			# mask = cv2.bitwise_and(square, square, mask=mask)
-			# total = cv2.countNonZero(mask)
-			#cnts_square = cv2.findContours(square, cv2.RETR_LIST,
-			#			cv2.CHAIN_APPROX_SIMPLE)
-			#cnts_square = imutils.grab_contours(cnts_square)
-			#su.export_img('exam_code_square_' + str(i) + '_' + str(j) + '.png', square)
+			su.export_img(name + '_square_' + str(i) + '_' + str(j) + '.jpg', square)
 			percent_non_zero = su.get_percent_non_zero(square)
-			#su.debug_print(str(i) + "_" + str(j) + " with percent: " + str(percent_non_zero))
 			if percent_non_zero > exam_code_percent[j]:
 				exam_code_percent[j] = percent_non_zero
 				exam_code[j] = str(i)
@@ -480,5 +512,14 @@ def get_exam_code_detail(name, exam_code_block_img):
 	return ''.join(exam_code)
 
 
-# path_img = 'E:\\hgedu-test\\kt5.png'#'E:\\hgedu-test\\kt1.png'
-# scan_exam(path_img)
+# success_img = ['3', '6', '7', '9', '12', '17', '19', '21', '24', '26']
+
+# for img_name in success_img:
+# 	path_img = 'E:\\hgedu-test-2\\success\\' + img_name + '.jpg'#'E:\\hgedu-test\\kt1.png'
+# 	scan_exam(path_img)
+
+path_img = 'E:\\hgedu-test-2\\success\\' + '23' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+path_img = 'E:\\hgedu-test\\' + 'kt4' + '.png'#'E:\\hgedu-test\\kt1.png'
+#path_img = 'E:\\hgedu-test-2\\failed-mo\\' + '20' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+#path_img = 'E:\\hgedu-test-2\\failed-fix\\' + '13' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+scan_exam(path_img)
