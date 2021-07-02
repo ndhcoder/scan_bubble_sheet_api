@@ -7,7 +7,7 @@ import time
 import traceback
 import scan_utils as su
 
-debug_mode = True
+debug_mode = False
 
 def scan_exam(path_img):
 	su.mkdir_base_folder()
@@ -518,8 +518,8 @@ def get_exam_code_detail(name, exam_code_block_img):
 # 	path_img = 'E:\\hgedu-test-2\\success\\' + img_name + '.jpg'#'E:\\hgedu-test\\kt1.png'
 # 	scan_exam(path_img)
 
-path_img = 'E:\\hgedu-test-2\\success\\' + '23' + '.jpg'#'E:\\hgedu-test\\kt1.png'
-path_img = 'E:\\hgedu-test\\' + 'kt4' + '.png'#'E:\\hgedu-test\\kt1.png'
+#path_img = 'E:\\hgedu-test-2\\success\\' + '23' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+#path_img = 'E:\\hgedu-test\\' + 'kt4' + '.png'#'E:\\hgedu-test\\kt1.png'
 #path_img = 'E:\\hgedu-test-2\\failed-mo\\' + '20' + '.jpg'#'E:\\hgedu-test\\kt1.png'
 #path_img = 'E:\\hgedu-test-2\\failed-fix\\' + '13' + '.jpg'#'E:\\hgedu-test\\kt1.png'
-scan_exam(path_img)
+#scan_exam(path_img)
