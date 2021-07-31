@@ -9,7 +9,7 @@ import traceback
 
 def current_milli_time():
 	return round(time.time() * 1000)
-debug_mode = True
+debug_mode = False
 base_folder = './test_debug/' + str(current_milli_time())
 
 def mkdir_base_folder():

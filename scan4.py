@@ -56,11 +56,14 @@ def scan_exam(path_img):
 		su.export_img_cnt('000_' + name_block + '_final.png', ans_block_img, cnts_correct, False)
 		all_ans.extend(ans)
 		
-	return {
+	final_res = {
 		'answers': all_ans,
 		'student_code': sbd,
 		'exam_code': exam_code
 	}
+
+	su.debug_print (str(final_res))
+	return final_res
 	
 
 def find_min_area(cnts):
@@ -220,7 +223,7 @@ def cal_mid_points(arr, mid, dis_avg, dis_arr):
 	real_dis_avg = avg2 - avg1
 	real_dis_arr = min_arr2 - max_arr1
 
-	#print ("find_cal_point: mid=" + str(mid) + " dis_avg=" + str(real_dis_avg) + ", dis_arr=" + str(real_dis_arr) + ", max_arr1=" + str(max_arr1) + ", min_arr2=" + str(min_arr2))
+	su.debug_print ("find_cal_point: mid=" + str(mid) + " dis_avg=" + str(real_dis_avg) + ", dis_arr=" + str(real_dis_arr) + ", max_arr1=" + str(max_arr1) + ", min_arr2=" + str(min_arr2))
 
 	if avg2 - avg1 < dis_avg:
 		return {'accept': False}
@@ -230,6 +233,22 @@ def cal_mid_points(arr, mid, dis_avg, dis_arr):
 
 	return {'accept': True, 'distance_avg': avg2 - avg1, 'distance_arr': min_arr2 - max_arr1}
 
+
+def find_max_cnt_area(thresh_img):
+	cnts = cv2.findContours(thresh_img.copy(), cv2.RETR_EXTERNAL,
+		cv2.CHAIN_APPROX_SIMPLE)
+	cnts = imutils.grab_contours(cnts)
+	max_area = 0
+	max_w = 0
+	max_h = 1
+	for cnt in cnts:
+		(x, y, w, h) = cv2.boundingRect(cnt)
+		if (w * h > max_area):
+			max_area = w * h 
+			max_w = w 
+			max_h = h
+
+	return max_area, max_w, max_h 
 
 def get_ans(name, ans_block_img, col_index, cache_percent):
 	#su.export_img(name + '.png', input_img)
@@ -271,7 +290,7 @@ def get_ans(name, ans_block_img, col_index, cache_percent):
 
 		for cnt in question_cnts:
 			(x, y, w, h) = cv2.boundingRect(cnt)
-			print ("cnt: " + str(min_dist_debug(x,y, map_xy)))
+			#print ("cnt: " + str(min_dist_debug(x,y, map_xy)))
 
 	size_question_cnts = len(question_cnts)
 	su.debug_print('size_question_cnts: ' + str(size_question_cnts))
@@ -297,6 +316,8 @@ def get_ans(name, ans_block_img, col_index, cache_percent):
 			(x, y, w, h) = cv2.boundingRect(cnt)
 			question_item = thresh_bg[y:(y + h), x:(x + w)]
 			#su.export_img(name + '_question' + str(index_question + 1) + '.png', question_item)
+			max_area, max_w, max_h = find_max_cnt_area(question_item)
+			su.debug_print(name + '_question' + str(index_question + 1) + " ar=" + str(max_w / float(max_h)))
 			percent_non_zero = su.get_percent_non_zero_with_size(question_item, min_size)
 			#non_zero = su.get_percent_non_zero_mask(str(index_question), question_item, ans_block_img[y:(y + h), x:(x + w)])
 			#su.debug_print(str(index_question + 1) + " with percent: " + str(percent_non_zero))
@@ -307,12 +328,27 @@ def get_ans(name, ans_block_img, col_index, cache_percent):
 				max_percent = percent_non_zero
 
 	max_percent = 27 if max_percent < 27 else max_percent
-	temp = max_percent / 1.7
+	temp = max_percent / 1.8
 	min_percent_correct = temp if temp > 20 else 20
+
+
 
 	point_avg = find_mid_points(only_percents, 15, 2)
 	print ("point_avg: " + str(point_avg))
-	min_percent_correct = point_avg
+	if point_avg > 0:
+		min_percent_correct = temp if point_avg < temp else point_avg
+		# if min_percent_correct < cache_percent['min']:
+		# 	min_percent_correct = cache_percent['min']
+		# else:
+		# 	cache_percent['min'] = min_percent_correct
+		
+		# if max_percent > cache_percent['max']:
+		# 	cache_percent['max'] = max_percent
+		# else:
+		# 	max_percent = cache_percent['max']
+		# 	cache_percent['max'] = max_percent
+	else:
+		min_percent_correct = -1
 
 	cnts_correct = []
 	print ("min_percent_correct: " + str(min_percent_correct) + ", max_percent=" + str(max_percent))
@@ -321,7 +357,7 @@ def get_ans(name, ans_block_img, col_index, cache_percent):
 		result_item = ''
 		temp_percents = su.sub_list(percents, i, i + 4)
 		for percent in temp_percents:
-			#print ("q: " + str(len(results) + 1) + ": " + str(percent['value']))
+			su.debug_print ("q: " + str(len(results) + 1) + ": " + str(percent['value']))
 			if percent['value'] > min_percent_correct and min_percent_correct > 0:
 				result_item += result_item_text[index_ans]
 				cnts_correct.append(percent['cnt'])
@@ -518,8 +554,10 @@ def get_exam_code_detail(name, exam_code_block_img):
 # 	path_img = 'E:\\hgedu-test-2\\success\\' + img_name + '.jpg'#'E:\\hgedu-test\\kt1.png'
 # 	scan_exam(path_img)
 
-#path_img = 'E:\\hgedu-test-2\\success\\' + '23' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+path_img = 'E:\\hgedu-test-2\\' + 'b5' + '.jpg'#'E:\\hgedu-test\\kt1.png'
 #path_img = 'E:\\hgedu-test\\' + 'kt4' + '.png'#'E:\\hgedu-test\\kt1.png'
 #path_img = 'E:\\hgedu-test-2\\failed-mo\\' + '20' + '.jpg'#'E:\\hgedu-test\\kt1.png'
 #path_img = 'E:\\hgedu-test-2\\failed-fix\\' + '13' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+#path_img = 'E:\\hgedu-test-2\\' + 'x6' + '.jpg'#'E:\\hgedu-test\\kt1.png'
+#path_img = 'E:\\hgedu-test-4\\b.jpg'
 #scan_exam(path_img)
