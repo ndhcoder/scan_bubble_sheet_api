@@ -12,10 +12,16 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 def current_milli_time():
     return round(time.time() * 1000)
 
-
 debug_mode = False
 base_folder = dir_path + '/test_debug/' + str(current_milli_time())
 
+def log_info(logger, msg):
+    logger.info(msg)
+    print(msg)
+
+def log_error(logger, msg):
+    logger.error(msg)
+    print(msg)
 
 def mkdir_base_folder():
     if debug_mode:

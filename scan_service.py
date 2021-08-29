@@ -5,7 +5,7 @@ import cv2
 import os
 import time
 import traceback
-import scan4 as scanner
+import scan_main as scanner
 
 def resolved(path_img):
 	result = scanner.scan_exam(path_img)
@@ -79,4 +79,4 @@ def read_sheet_info_from_image(link):
 
 	return {'success': False, 'message': 'Please try again !'}
 
-	
+
