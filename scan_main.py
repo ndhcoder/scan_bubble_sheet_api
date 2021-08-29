@@ -634,5 +634,5 @@ def min_dist_debug(x, y, map_xy):
 
     return m
 
-path_img = 'E:\\hgedu-6\\0001.jpg'
-scan_exam(path_img)
+#path_img = 'E:\\hgedu-6\\0001.jpg'
+#scan_exam(path_img)
