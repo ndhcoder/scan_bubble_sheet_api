@@ -63,9 +63,9 @@ def scan_exam(path_img):
 
         su.log_info(logger, 'scan path_img result: ' + path_img)
         su.log_info(logger, str(final_res))
-        a = 1 / 0
-    except:
+    except Exception as err:
         su.log_error(logger, 'scan path_img failure: ' + path_img)
+        traceback.print_tb(err.__traceback__)
 
     return final_res
 
